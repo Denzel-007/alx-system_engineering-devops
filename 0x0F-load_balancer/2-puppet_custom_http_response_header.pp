@@ -1,40 +1,35 @@
-# configure all the previous tasks but with Puppet
-
-$host_name = generate('/bin/uname', '--nodename')
-$nginx_site_config = "server {
-	listen 80 default_server;
-	listen [::]:80 default_server ipv6only=on;
-	root /var/www/html;
-
-	add_header X-Served-By ${host_name};
-
-	location /redirect_me {
-		return 301 http://example.com/;
-	}
-}"
-
-package { 'Nginx installation':
-  ensure => latest,
-  name   => 'nginx'
+# puppet manifest creating a custom HTTP header response
+exec { 'apt-get-update':
+  command => '/usr/bin/apt-get update',
 }
 
-file { 'Nginx site configuration':
-  ensure  => file,
-  require => Package['nginx'],
+package { 'nginx':
+  ensure  => installed,
+  require => Exec['apt-get-update'],
+}
+
+file_line { 'a':
+  ensure  => 'present',
   path    => '/etc/nginx/sites-available/default',
-  content => $nginx_site_config
-}
-
-file { 'site index':
-  ensure  => file,
+  after   => 'listen 80 default_server;',
+  line    => 'rewrite ^/redirect_me https://www.youtube.com/watch?v=QH2-TGUlwu4 permanent;',
   require => Package['nginx'],
-  path    => '/var/www/html/index.html',
-  content => "Holberton School\n"
 }
 
-service { 'Nginx service':
-  ensure    => running,
-  name      => 'nginx',
-  enable    => true,
-  subscribe => File['/etc/nginx/sites-available/default']
+file_line { 'b':
+  ensure  => 'present',
+  path    => '/etc/nginx/sites-available/default',
+  after   => 'listen 80 default_server;',
+  line    => 'add_header X-Served-By $hostname;',
+  require => Package['nginx'],
+}
+
+file { '/var/www/html/index.html':
+  content => 'Hello World!',
+  require => Package['nginx'],
+}
+
+service { 'nginx':
+  ensure  => running,
+  require => Package['nginx'],
 }
